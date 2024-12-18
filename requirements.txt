@@ -7,4 +7,9 @@ pandas
 scikit-learn
 together
 matplotlib
-StringIO
+streamlit
+together
+pandas
+numpy
+scikit-learn
+matplotlib
