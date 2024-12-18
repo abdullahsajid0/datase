@@ -1,87 +1,81 @@
 import streamlit as st
+from dataset_generator import DatasetGenerator  # Assuming you saved the class code in dataset_generator.py
+from together import api as together
 import pandas as pd
-from transformers import pipeline
+import random
+import json
+from datetime import datetime
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Initialize Streamlit App
-st.title("Dataset Polisher App")
-st.write("Upload your dataset to polish it without losing any data quality.")
+# Streamlit UI Setup
+st.set_page_config(page_title="AgriGo Dataset Generation", page_icon="📊", layout="wide")
 
-# Upload Dataset
-uploaded_file = st.file_uploader("Upload your dataset (.csv or .xlsx)", type=["csv", "xlsx"])
+st.title("🚜 AgriGo Dataset Generator")
+st.markdown("""
+This tool allows you to generate high-quality conversational datasets for your AgriGo project, 
+providing detailed quality metrics and enabling real-time progress monitoring.
+""")
 
-if uploaded_file:
-    # Load Dataset
-    if uploaded_file.name.endswith('.csv'):
-        df = pd.read_csv(uploaded_file)
-    elif uploaded_file.name.endswith('.xlsx'):
-        df = pd.read_excel(uploaded_file)
+# File upload section
+st.sidebar.title("🗂️ Upload Files")
+uploaded_files = st.sidebar.file_uploader("Upload your TXT, CSV, or JSON files", type=["txt", "csv", "json", "jsonl"], accept_multiple_files=True)
 
-    st.subheader("Raw Dataset Preview")
-    st.write(df)
-
-    # Dropdown to select the question column
-    question_column = st.selectbox("Select the column containing questions:", df.columns)
-
-    # Polishing Options
-    st.subheader("Polishing Options")
-    polish_questions = st.checkbox("Rephrase Questions")
-    detect_intent = st.checkbox("Add Intent Field")
-
-    # Load AI Model (only if required)
-    if polish_questions:
-        st.write("Loading AI model for rephrasing...")
-        rephraser = pipeline("text2text-generation", model="t5-small")
-
-    # Rephrase Questions
-    if polish_questions:
-        if question_column in df.columns:
-            st.write("Rephrasing questions...")
-            try:
-                df['Polished_Question'] = df[question_column].apply(
-                    lambda x: rephraser(x, max_length=50, num_return_sequences=1)[0]['generated_text'] if pd.notna(x) else x
+if uploaded_files:
+    # Initialize Dataset Generator class
+    embedding_model = "your_embedding_model_here"  # Initialize your embedding model
+    model_name = "gpt-3.5-turbo"  # Use appropriate model name
+    temperature = 0.7
+    dataset_generator = DatasetGenerator(embedding_model, model_name, temperature)
+    
+    # Process uploaded files
+    st.sidebar.write("Processing your files...")
+    num_files_processed = dataset_generator.add_context_data(uploaded_files)
+    st.sidebar.write(f"Processed {num_files_processed} data points from your files.")
+    
+    # Topic and Concept Input
+    topic = st.text_input("Enter the topic for your dataset", value="Agriculture")
+    concepts_input = st.text_area("Enter the concepts (comma-separated)", value="Crop Growth, Pest Control, Weather Forecasting")
+    
+    if concepts_input:
+        concepts = [concept.strip() for concept in concepts_input.split(",")]
+    
+    # Number of samples input
+    num_samples = st.number_input("Enter the number of samples to generate", min_value=1, max_value=1000, value=10)
+    
+    # Generate dataset button
+    if st.button("Generate Dataset"):
+        try:
+            st.write("🔄 Generating dataset... Please wait.")
+            dataset = dataset_generator.generate_dataset(topic=topic, concepts=concepts, num_samples=num_samples)
+            
+            # Display the dataset
+            st.write(f"✅ Successfully generated {len(dataset)} samples!")
+            if dataset:
+                df = pd.DataFrame([
+                    {
+                        "Prompt": entry["prompt"],
+                        "Response": entry["response"],
+                        "Quality Metrics": entry["metadata"]["quality_metrics"]
+                    } for entry in dataset
+                ])
+                st.write(df)
+                
+                # Provide download option
+                def to_csv(df):
+                    return df.to_csv(index=False).encode('utf-8')
+                
+                st.download_button(
+                    label="Download Dataset as CSV",
+                    data=to_csv(df),
+                    file_name="generated_dataset.csv",
+                    mime="text/csv"
                 )
-                st.success("Questions rephrased successfully!")
-            except Exception as e:
-                st.error(f"An error occurred during rephrasing: {e}")
-        else:
-            st.error("Please select a valid column for rephrasing.")
+                
+                st.success("Dataset generation complete!")
+                
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
 
-    # Add Intent Field
-    if detect_intent:
-        st.write("Detecting intents...")
-        def detect_intent_logic(question):
-            if pd.isna(question):
-                return "unknown"
-            if "requirement" in question.lower():
-                return "eligibility"
-            elif "mathematics" in question.lower():
-                return "subject_requirement"
-            else:
-                return "general"
+else:
+    st.warning("Please upload your source files to begin.")
 
-        df['Intent'] = df[question_column].apply(detect_intent_logic)
-        st.success("Intent field added!")
-
-    # Display Polished Dataset
-    st.subheader("Polished Dataset Preview")
-    st.write(df)
-
-    # Download Option
-    st.subheader("Download Polished Dataset")
-    polished_file = st.selectbox("Select export format", ["CSV", "Excel"])
-    if polished_file == "CSV":
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            "Download CSV",
-            csv,
-            "polished_dataset.csv",
-            "text/csv"
-        )
-    elif polished_file == "Excel":
-        excel_buffer = pd.ExcelWriter("polished_dataset.xlsx", engine='xlsxwriter')
-        df.to_excel(excel_buffer, index=False, sheet_name='Polished Dataset')
-        st.download_button(
-            "Download Excel",
-            excel_buffer,
-            "polished_dataset.xlsx"
-        )
