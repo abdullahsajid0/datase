@@ -1,17 +1,16 @@
 import streamlit as st
 import pandas as pd
-from io import StringIO
 from transformers import pipeline
 
 # Initialize Streamlit App
 st.title("Dataset Polisher App")
-st.write("Upload your dataset to polish it while ensuring data integrity.")
+st.write("Upload your dataset to polish it without losing any data quality.")
 
 # Upload Dataset
 uploaded_file = st.file_uploader("Upload your dataset (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
-    # Load the dataset
+    # Load Dataset
     if uploaded_file.name.endswith('.csv'):
         df = pd.read_csv(uploaded_file)
     elif uploaded_file.name.endswith('.xlsx'):
@@ -20,16 +19,30 @@ if uploaded_file:
     st.subheader("Raw Dataset Preview")
     st.write(df)
 
-    # Select the column for questions
+    # Dropdown to select the question column
     question_column = st.selectbox("Select the column containing questions:", df.columns)
 
+    # Polishing Options
+    st.subheader("Polishing Options")
+    polish_questions = st.checkbox("Rephrase Questions")
+    detect_intent = st.checkbox("Add Intent Field")
+
+    # Load AI Model (only if required)
+    if polish_questions:
+        st.write("Loading AI model for rephrasing...")
+        rephraser = pipeline("text2text-generation", model="t5-small")
+
+    # Rephrase Questions
     if polish_questions:
         if question_column in df.columns:
             st.write("Rephrasing questions...")
-            df['Polished_Question'] = df[question_column].apply(
-                lambda x: rephraser(x, max_length=50, num_return_sequences=1)[0]['generated_text']
-            )
-            st.success("Questions rephrased!")
+            try:
+                df['Polished_Question'] = df[question_column].apply(
+                    lambda x: rephraser(x, max_length=50, num_return_sequences=1)[0]['generated_text'] if pd.notna(x) else x
+                )
+                st.success("Questions rephrased successfully!")
+            except Exception as e:
+                st.error(f"An error occurred during rephrasing: {e}")
         else:
             st.error("Please select a valid column for rephrasing.")
 
@@ -37,6 +50,8 @@ if uploaded_file:
     if detect_intent:
         st.write("Detecting intents...")
         def detect_intent_logic(question):
+            if pd.isna(question):
+                return "unknown"
             if "requirement" in question.lower():
                 return "eligibility"
             elif "mathematics" in question.lower():
@@ -44,7 +59,7 @@ if uploaded_file:
             else:
                 return "general"
 
-        df['Intent'] = df['Question'].apply(detect_intent_logic)
+        df['Intent'] = df[question_column].apply(detect_intent_logic)
         st.success("Intent field added!")
 
     # Display Polished Dataset
@@ -63,11 +78,10 @@ if uploaded_file:
             "text/csv"
         )
     elif polished_file == "Excel":
-        excel_buffer = StringIO()
-        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Polished Dataset')
+        excel_buffer = pd.ExcelWriter("polished_dataset.xlsx", engine='xlsxwriter')
+        df.to_excel(excel_buffer, index=False, sheet_name='Polished Dataset')
         st.download_button(
             "Download Excel",
-            excel_buffer.getvalue(),
+            excel_buffer,
             "polished_dataset.xlsx"
         )
