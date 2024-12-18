@@ -2,3 +2,8 @@ streamlit
 pandas 
 transformers 
 xlsxwriter
+streamlit
+pandas
+scikit-learn
+together
+matplotlib
