@@ -11,6 +11,9 @@ import os
 import together  # Assuming 'together' is a package
 from sklearn.metrics.pairwise import cosine_similarity
 from io import BytesIO
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Set environment variable for API key (make sure to set TOGETHER_API_KEY in your environment)
 together.api_key = os.getenv('TOGETHER_API_KEY')
