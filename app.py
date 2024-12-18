@@ -11,7 +11,7 @@ st.write("Upload your dataset to polish it while ensuring data integrity.")
 uploaded_file = st.file_uploader("Upload your dataset (.csv or .xlsx)", type=["csv", "xlsx"])
 
 if uploaded_file:
-    # Load Dataset
+    # Load the dataset
     if uploaded_file.name.endswith('.csv'):
         df = pd.read_csv(uploaded_file)
     elif uploaded_file.name.endswith('.xlsx'):
@@ -20,19 +20,18 @@ if uploaded_file:
     st.subheader("Raw Dataset Preview")
     st.write(df)
 
-    # Polishing Options
-    st.subheader("Polishing Options")
-    polish_questions = st.checkbox("Rephrase Questions")
-    detect_intent = st.checkbox("Add Intent Field")
+    # Select the column for questions
+    question_column = st.selectbox("Select the column containing questions:", df.columns)
 
-    # Rephrase Questions
     if polish_questions:
-        st.write("Rephrasing questions...")
-        rephraser = pipeline("text2text-generation", model="t5-small")  # Example model
-        df['Polished_Question'] = df['Question'].apply(
-            lambda x: rephraser(x, max_length=50, num_return_sequences=1)[0]['generated_text']
-        )
-        st.success("Questions rephrased!")
+        if question_column in df.columns:
+            st.write("Rephrasing questions...")
+            df['Polished_Question'] = df[question_column].apply(
+                lambda x: rephraser(x, max_length=50, num_return_sequences=1)[0]['generated_text']
+            )
+            st.success("Questions rephrased!")
+        else:
+            st.error("Please select a valid column for rephrasing.")
 
     # Add Intent Field
     if detect_intent:
