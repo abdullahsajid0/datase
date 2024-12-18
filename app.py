@@ -6,6 +6,8 @@ import random
 import json
 from datetime import datetime
 from sklearn.metrics.pairwise import cosine_similarity
+import os
+
 
 # Streamlit UI Setup
 st.set_page_config(page_title="AgriGo Dataset Generation", page_icon="📊", layout="wide")
