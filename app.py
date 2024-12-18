@@ -36,40 +36,38 @@ class DatasetGenerator:
         self.temperature = temperature
         self.context_data = ""
 
-    import io  # Make sure to import the io module
-
-def add_context_data(self, source_files):
-    """Process uploaded files into context knowledge"""
-    st.write("📝 Processing uploaded files...")
-    context_data = []
-    for file in source_files:
-        st.write(f"  - Reading {file.name}")
-        content = file.read().decode('utf-8')
-        if file.name.endswith('.txt'):
-            lines = content.split('\n')
-            st.write(f"    Found {len(lines)} lines in txt file")
-            context_data.extend(lines)
-        elif file.name.endswith('.csv'):
-            try:
-                # Use io.StringIO to read CSV content
-                df = pd.read_csv(io.StringIO(content))
-                st.write(f"    Found {len(df)} rows in csv file")
-                context_data.extend(df.iloc[:, 0].tolist())  # Assuming first column contains relevant text
-            except pd.errors.ParserError:
-                st.error(f"❌ Error reading CSV file {file.name}")
-        elif file.name.endswith(('.json', '.jsonl')):
-            lines = [line for line in content.split('\n') if line.strip()]
-            st.write(f"    Found {len(lines)} lines in json file")
-            for line in lines:
+    def add_context_data(self, source_files):
+        """Process uploaded files into context knowledge"""
+        st.write("📝 Processing uploaded files...")
+        context_data = []
+        for file in source_files:
+            st.write(f"  - Reading {file.name}")
+            content = file.read().decode('utf-8')
+            if file.name.endswith('.txt'):
+                lines = content.split('\n')
+                st.write(f"    Found {len(lines)} lines in txt file")
+                context_data.extend(lines)
+            elif file.name.endswith('.csv'):
                 try:
-                    data = json.loads(line)
-                    if isinstance(data, dict) and 'text' in data:
-                        context_data.append(data['text'])
-                except json.JSONDecodeError:
-                    continue
+                    df = pd.read_csv(io.StringIO(content))
+                    st.write(f"    Found {len(df)} rows in csv file")
+                    context_data.extend(df.iloc[:, 0].tolist())  # Assuming first column contains relevant text
+                except pd.errors.ParserError:
+                    st.error(f"❌ Error reading CSV file {file.name}")
+            elif file.name.endswith(('.json', '.jsonl')):
+                lines = [line for line in content.split('\n') if line.strip()]
+                st.write(f"    Found {len(lines)} lines in json file")
+                for line in lines:
+                    try:
+                        data = json.loads(line)
+                        if isinstance(data, dict) and 'text' in data:
+                            context_data.append(data['text'])
+                    except json.JSONDecodeError:
+                        continue
 
-    self.context_data = "\n".join(context_data)
-    return len(context_data)
+        self.context_data = "\n".join(context_data)
+        return len(context_data)
+
 
 
     def generate_dataset(self, topic: str, concepts: List[str], num_samples: int) -> List[Dict]:
