@@ -161,7 +161,7 @@ class DatasetGenerator:
                 }
             ]
             
-            together.api_key = "b2934a0d84d45a7511b9e1e9f62db2f6d2a7e388521f367ea1d2de47635ad201"
+            together.api_key = os.getenv("GROQ_API_KEY", "")
             client = together.Together(api_key=together.api_key)
             
             response = client.chat.completions.create(
